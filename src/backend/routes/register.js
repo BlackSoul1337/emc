@@ -1,4 +1,11 @@
-app.post('/api/users/register', async (req, res) => {
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import User from '../models/User.js';
+
+const router = express.Router();
+
+router.post('/register', async (req, res) => {
     try {
         const { email, password, firstName, lastName, phone, iin } = req.body;
 
@@ -30,6 +37,9 @@ app.post('/api/users/register', async (req, res) => {
         res.status(201).json({ message: 'success' });
 
     } catch (error) {
+        console.error('Registration error:', error);
         res.status(500).json({ message: 'serv error' });
     }
 });
+
+export default router;
