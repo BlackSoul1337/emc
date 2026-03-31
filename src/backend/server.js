@@ -10,7 +10,7 @@ import loginRoutes from './routes/login.js';
 import authCheckRoutes from './routes/authCheck.js';
 import adminRoutes from './routes/admin.js';
 import appointmentRoutes from './routes/appointments.js'
-import doctorRoutes from './routes/doctor.js'
+import doctorRoutes from './routes/doctors.js'
 
 dotenv.config();
 
@@ -24,7 +24,7 @@ app.use('/api/users', loginRoutes);
 app.use('/api/users', authCheckRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/appointments', appointmentRoutes)
-app.use('api/doctors', doctorRoutes)
+app.use('/api/doctors', doctorRoutes)
 
 // app.post('/api/setup-admin', async (req, res) => {
 //     try {
@@ -52,7 +52,7 @@ app.use('api/doctors', doctorRoutes)
 //     }
 // });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000 || 5000;
 
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
