@@ -9,7 +9,8 @@ const appointmentSchema = new mongoose.Schema({
         enum: ['scheduled', 'completed', 'cancelled'], 
         default: 'scheduled' 
     },
-    notes: { type: String }
+    notes: { type: String, default: '' },
+    files: [{ type: String }],
 }, { timestamps: true });
 
 export default mongoose.model('Appointment', appointmentSchema);

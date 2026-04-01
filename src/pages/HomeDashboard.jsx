@@ -5,29 +5,40 @@ function HomeDashboard() {
     const [doctors, setDoctors] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [stats, setStats] = useState({ totalDoctors: 0, appointmentsToday: 0 });
 
     useEffect(() => {
-        const fetchDoctors = async () => {
+        const fetchData = async () => {
             try {
-                const response = await api.get('/doctors');
-                setDoctors(response.data);
+                const [doctorsRes, statsRes] = await Promise.all([
+                    api.get('/doctors'),
+                    api.get('/stats/summary')
+                ]);
+                setDoctors(doctorsRes.data);
+                setStats(statsRes.data);
             } catch (err) {
-                console.error('Error when uploading doctors:', err);
-                setError('The list of specialists could not be uploaded. Try again later.');
+                console.error('Error fetching dashboard data:', err);
+                setError('Failed to load some dashboard data. Try again later.');
             } finally {
                 setIsLoading(false);
             }
         };
-
-        fetchDoctors();
+        
+        fetchData();
     }, []);
 
     return (
         <div>
             <h1>WELCOME</h1>
-            <p>We take care of your health. Choose the right specialist:</p>
+            
+            <section style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc' }}>
+                <h2>System Statistics</h2>
+                <p><strong>Total Doctors:</strong> {stats.totalDoctors}</p>
+                <p><strong>Total Patients:</strong> {stats.totalPatients}</p>
+                <p><strong>Appointments Today:</strong> {stats.appointmentsToday}</p>
+            </section>
 
-            <h2>Our doctors</h2>
+            <p>We take care of your health. Choose the right specialist:</p>
             
             {isLoading && <p>Uploading a list of doctors...</p>}
             {error && <p style={{ color: 'red' }}>{error}</p>}

@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
             }
 
             try {
-                const response = await api.get('/users/auth');
+                const response = await api.get(`/users/auth?t=${Date.now()}`);
                 setUser(response.data.user);
             } catch (error) {
                 console.error('authorization verification error:', error);
@@ -40,8 +40,12 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const updateUser = (updatedData) => {
+        setUser((prevUser) => ({ ...prevUser, ...updatedData }));
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
             {children}
         </AuthContext.Provider>
     );

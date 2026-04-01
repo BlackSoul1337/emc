@@ -6,6 +6,20 @@ import { roleMiddleware } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
+router.get('/', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
+    try {
+        const appointments = await Appointment.find()
+            .populate('doctorId', 'firstName lastName specialization')
+            .populate('patientId', 'firstName lastName iin phone')
+            .sort({ date: -1 });
+
+        res.status(200).json(appointments);
+    } catch (error) {
+        console.error('fetch all appointments err:', error);
+        res.status(500).json({ message: 'serv err when receiving all records' });
+    }
+});
+
 router.post('/book', authMiddleware, roleMiddleware(['patient']), async (req, res) => {
     try {
         const { doctorId, date, notes } = req.body;

@@ -21,6 +21,7 @@ function MainLayout() {
                         <>
                             {user.role === 'patient' && <Link to="/patient">Medical card</Link>}
                             {user.role === 'doctor' && <Link to="/doctor">Doctor`s cabinet</Link>}
+                            {user.role === 'admin' && <Link to="/admin">Admin Panel</Link>}
                             <button onClick={handleLogout}>Logout ({user.firstName})</button>
                         </>
                     ) : (
@@ -35,6 +36,10 @@ function MainLayout() {
             <main>
                 <Outlet />
             </main>
+
+            <footer style={{ borderTop: '1px solid #ccc', padding: '10px', marginTop: '20px', textAlign: 'center' }}>
+                <p>&copy; {new Date().getFullYear()} Electronic Medical Cards System.</p>
+            </footer>
         </div>
     );
 }

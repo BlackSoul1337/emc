@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
         enum: ['patient', 'doctor', 'admin'], 
         default: 'patient' 
     },
+    avatarUrl: { type: String, default: '' },
     firstName: String,
     lastName: String,
     iin: { type: String, unique: true, sparse: true },
