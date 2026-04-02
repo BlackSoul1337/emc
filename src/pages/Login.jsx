@@ -1,76 +1,58 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useContext, useRef, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 function Login() {
-    const navigate = useNavigate();
-    const { login } = useContext(AuthContext);
-    
-    const [credentials, setCredentials] = useState({ email: '', password: '' });
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const { login } = useContext(AuthContext);
+    const { t } = useLanguage();
+    const navigate = useNavigate();
+    const location = useLocation();
+    
+    const queryParams = new URLSearchParams(location.search);
+    const activated = queryParams.get('activated');
 
-    const handleChange = (e) => {
-        setCredentials({
-            ...credentials,
-            [e.target.name]: e.target.value
-        });
-    };
+    const formRef = useRef(null);
+
+    useEffect(() => {
+        // pure CSS animations used
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-
-        if (!credentials.email || !credentials.password) {
-            setError('Enter your email and pass');
-            return;
-        }
-
-        setIsLoading(true);
-
         try {
-            const response = await api.post('/users/login', credentials);
-            
-            const { token, user } = response.data;
-            
-            login(user, token);
-            
-            navigate('/');
-            
+            const response = await api.post('/users/login', { email, password });
+            login(response.data.user);
+            if (response.data.user.role === 'patient') navigate('/patient');
+            else if (response.data.user.role === 'doctor') navigate('/doctor');
+            else if (response.data.user.role === 'admin') navigate('/admin');
+            else navigate('/');
         } catch (err) {
-            if (err.response && err.response.data) {
-                setError(err.response.data.message);
-            } else {
-                setError('Auth err. Check you details');
-            }
-        } finally {
-            setIsLoading(false);
+            setError(err.response?.data?.message || 'Login error');
         }
     };
 
     return (
-        <div>
-            <h2>Sign in</h2>
-            
-            {error && <div style={{ color: 'red' }}>{error}</div>}
-            
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label>Email</label>
-                    <input type="email" name="email" value={credentials.email} onChange={handleChange} required />
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '50px' }}>
+            <div className="card fade-in" ref={formRef} style={{ width: '100%', maxWidth: '400px' }}>
+                <h2 style={{ textAlign: 'center', borderBottom: 'none' }}>{t('login')}</h2>
+                {activated && <p style={{ color: 'var(--success)', textAlign: 'center' }}>Account activated successfully! You can login now.</p>}
+                {error && <p style={{ color: 'var(--danger)', textAlign: 'center' }}>{error}</p>}
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column' }}>
+                    <input type="email" placeholder={t('email')} value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <input type="password" placeholder={t('password')} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <button type="submit" style={{ marginTop: '10px' }}>{t('login')}</button>
+                </form>
+                <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                    <span>{t('doNotHaveAccount')} </span>
+                    <Link to="/register">{t('registerApp')}</Link>
                 </div>
-                <div>
-                    <label>Pass</label>
-                    <input type="password" name="password" value={credentials.password} onChange={handleChange} required />
-                </div>
-                
-                <button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Sign in...' : 'Login'}
-                </button>
-            </form>
-            
-            <p>No account? <Link to="/register">Register</Link></p>
+            </div>
         </div>
     );
 }

@@ -1,31 +1,30 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
+import cloudinaryStorage from 'multer-storage-cloudinary';
 import User from '../models/User.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import Appointment from '../models/Appointment.js';
 
 const router = express.Router();
 
-const uploadDir = 'uploads/avatars';
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
+const avatarStorage = cloudinaryStorage({
+    cloudinary: cloudinary,
+    folder: 'emc_avatars',
+    allowedFormats: ['jpg', 'png', 'jpeg', 'webp'],
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, `${req.user.userId}-${uniqueSuffix}${ext}`);
+        cb(undefined, `${req.user.userId}-${Date.now()}`);
     }
 });
 
 const upload = multer({ 
-    storage,
+    storage: avatarStorage,
     limits: { fileSize: 5 * 1024 * 1024 }
 });
 
@@ -35,7 +34,7 @@ router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res)
             return res.status(400).json({ message: 'Please select the file' });
         }
 
-        const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+        const avatarUrl = req.file.path; // Cloudinary returns the full URL in path
 
         const updatedUser = await User.findByIdAndUpdate(
             req.user.userId,
@@ -53,19 +52,12 @@ router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res)
     }
 });
 
-const labDir = 'uploads/lab-results';
-if (!fs.existsSync(labDir)) {
-    fs.mkdirSync(labDir, { recursive: true });
-}
-
-const labStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, labDir);
-    },
+const labStorage = cloudinaryStorage({
+    cloudinary: cloudinary,
+    folder: 'emc_lab_results',
+    allowedFormats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'],
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, `result-${req.params.appointmentId}-${uniqueSuffix}${ext}`);
+        cb(undefined, `result-${req.params.appointmentId}-${Date.now()}`);
     }
 });
 
@@ -77,7 +69,7 @@ router.post('/lab-result/:appointmentId', authMiddleware, uploadLab.single('file
             return res.status(400).json({ message: 'Select a file to upload' });
         }
 
-        const fileUrl = `/uploads/lab-results/${req.file.filename}`;
+        const fileUrl = req.file.path;
 
         const appointment = await Appointment.findByIdAndUpdate(
             req.params.appointmentId,

@@ -9,18 +9,11 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const checkAuth = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setIsLoading(false);
-                return;
-            }
-
             try {
                 const response = await api.get(`/users/auth?t=${Date.now()}`);
                 setUser(response.data.user);
             } catch (error) {
-                console.error('authorization verification error:', error);
-                localStorage.removeItem('token');
+                // Not logged in or token expired
                 setUser(null);
             } finally {
                 setIsLoading(false);
@@ -30,13 +23,16 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, []);
 
-    const login = (userData, token) => {
-        localStorage.setItem('token', token);
+    const login = (userData) => {
         setUser(userData);
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
+    const logout = async () => {
+        try {
+            await api.post('/users/logout');
+        } catch (e) {
+            console.error('Logout error', e);
+        }
         setUser(null);
     };
 

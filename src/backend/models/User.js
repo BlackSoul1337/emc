@@ -15,6 +15,11 @@ const userSchema = new mongoose.Schema({
     phone: String,
     specialization: { type: String }, 
     experienceYears: { type: Number },
+    
+    isActivated: { type: Boolean, default: false },
+    activationLink: { type: String },
+    
+    availableSlots: [{ type: Date }]
 }, { timestamps: true });
 
 export default mongoose.model('User', userSchema);

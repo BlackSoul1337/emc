@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url)
@@ -18,12 +19,18 @@ import doctorRoutes from './routes/doctors.js'
 import uploadRoutes from './routes/upload.js'
 import statsRoutes from './routes/stats.js';
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
-app.use(cors());
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+app.use(cors({
+    origin: frontendUrl,
+    credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use('/api/users', registerRoutes);
 app.use('/api/users', loginRoutes);
@@ -35,31 +42,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/upload', uploadRoutes)
 app.use('/api/stats', statsRoutes);
 
-// app.post('/api/setup-admin', async (req, res) => {
-//     try {
-//         const adminExists = await User.findOne({ role: 'admin' });
-//         if (adminExists) {
-//             return res.status(400).json({ message: 'ADMIN ALR EXISTS' });
-//         }
+const distPath = path.join(__dirname, '../../dist');
+app.use(express.static(distPath));
 
-//         const hashedPassword = await bcrypt.hash('admin123', 10);
-//         const admin = new User({
-//             email: 'admin@emc.kz',
-//             password: hashedPassword,
-//             firstName: 'Главный',
-//             lastName: 'Админ',
-//             phone: '+77770000000',
-//             iin: '000000000000',
-//             role: 'admin',
-//             isActivated: true
-//         });
-        
-//         await admin.save();
-//         res.status(201).json({ message: 'SUCCESS VICTORY OMG', email: 'admin@emc.kz', password: 'admin123' });
-//     } catch (error) {
-//         res.status(500).json({ message: error.message });
-//     }
-// });
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+});
 
 const PORT = process.env.PORT || 3000 || 5000;
 

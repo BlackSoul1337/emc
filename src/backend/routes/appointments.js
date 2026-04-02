@@ -25,35 +25,28 @@ router.post('/book', authMiddleware, roleMiddleware(['patient']), async (req, re
         const { doctorId, date, notes } = req.body;
         const patientId = req.user.userId;
 
-        if (!doctorId || !date) {
-            return res.status(400).json({ message: 'you must specify the doctor and the date of the appointment' });
-        }
+        if (!doctorId || !date) return res.status(400).json({ message: 'you must specify the doctor and the date of the appointment' });
 
         const doctor = await User.findById(doctorId);
-        if (!doctor || doctor.role !== 'doctor') {
-            return res.status(404).json({ message: 'the selected doctor wasnt found' });
+        if (!doctor || doctor.role !== 'doctor') return res.status(404).json({ message: 'the selected doctor wasnt found' });
+
+        const requestedDate = new Date(date);
+        
+        const slotExists = doctor.availableSlots.some(slot => slot.getTime() === requestedDate.getTime());
+        if (!slotExists) {
+            return res.status(400).json({ message: 'This time slot is no longer available. Please choose another one.' });
         }
 
         const existingAppointment = await Appointment.findOne({ doctorId, date });
-        if (existingAppointment) {
-            return res.status(400).json({ message: 'the doctor has already taken this time' });
-        }
+        if (existingAppointment) return res.status(400).json({ message: 'the doctor has already taken this time' });
 
-        const newAppointment = new Appointment({
-            patientId,
-            doctorId,
-            date,
-            notes,
-            status: 'scheduled'
-        });
+        const newAppointment = new Appointment({ patientId, doctorId, date, notes, status: 'scheduled' });
 
-        await newAppointment.save();
+        doctor.availableSlots = doctor.availableSlots.filter(slot => slot.getTime() !== requestedDate.getTime());
+        
+        await Promise.all([newAppointment.save(), doctor.save()]);
 
-        res.status(201).json({ 
-            message: 'you have successfully made an appointment', 
-            appointment: newAppointment 
-        });
-
+        res.status(201).json({ message: 'you have successfully made an appointment', appointment: newAppointment });
     } catch (error) {
         console.error('booking error:', error);
         res.status(500).json({ message: 'serv err when making an appointment' });
@@ -124,9 +117,19 @@ router.delete('/:id', authMiddleware, async (req, res) => {
             return res.status(403).json({ message: 'you dont have permission to delete this record' });
         }
 
+        if (appointment.status === 'scheduled') {
+            const doctor = await User.findById(appointment.doctorId);
+            if (doctor) {
+                doctor.availableSlots.push(appointment.date);
+                doctor.availableSlots.sort((a, b) => a - b);
+                await doctor.save();
+            }
+        }
+
         await Appointment.findByIdAndDelete(req.params.id);
         res.json({ message: 'record successfully deleted' });
     } catch (error) {
+        console.error('Delete appointment error:', error);
         res.status(500).json({ message: 'err when deleting' });
     }
 });

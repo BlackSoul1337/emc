@@ -1,29 +1,32 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import api from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import Loader from '../components/Loader';
 
 function PatientCabinet() {
     const { user, updateUser } = useContext(AuthContext);
+    const { t } = useLanguage();
     const [appointments, setAppointments] = useState([]);
     const [doctors, setDoctors] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isBooking, setIsBooking] = useState(false);
     const [error, setError] = useState('');
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarUrl, setAvatarUrl] = useState('');
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [profileData, setProfileData] = useState({ firstName: '', lastName: '', phone: '' });
 
-    const [bookingData, setBookingData] = useState({
-        doctorId: '',
-        date: '',
-        notes: ''
-    });
+    const [bookingData, setBookingData] = useState({ doctorId: '', date: '', notes: '' });
+    const cabinetRef = useRef(null);
 
     useEffect(() => {
         fetchData();
-    },[]);
+        if (user) setProfileData({ firstName: user.firstName, lastName: user.lastName, phone: user.phone });
+    }, [user]);
 
     const fetchData = async () => {
-        setIsLoading(true);
-        setError('');
+        setIsLoading(true); setError('');
         try {
             const [appRes, docRes] = await Promise.all([
                 api.get(`/appointments/patient?t=${Date.now()}`),
@@ -31,12 +34,21 @@ function PatientCabinet() {
             ]);
             setAppointments(appRes.data);
             setDoctors(docRes.data);
-        } catch (err) {
-            console.error('Data upload error:', err);
-            setError('Failed to upload cabinet data.');
-        } finally {
-            setIsLoading(false);
+        } catch (err) { setError('Failed to upload cabinet data.'); } 
+        finally { setIsLoading(false); }
+    };
+
+    const handleProfileUpdate = async (e) => {
+        e.preventDefault();
+        if (!/^\+?[0-9]{10,15}$/.test(profileData.phone)) {
+            return alert('Invalid phone format. Please enter + and 10 to 15 digits.');
         }
+        try {
+            const res = await api.put('/users/profile', profileData);
+            updateUser(res.data.user);
+            setIsEditingProfile(false);
+            alert('Profile successfully updated!');
+        } catch (err) { alert('Error updating profile'); }
     };
 
     const handleFileChange = (e) => setAvatarFile(e.target.files[0]);
@@ -44,38 +56,28 @@ function PatientCabinet() {
     const handleAvatarUpload = async (e) => {
         e.preventDefault();
         if (!avatarFile) return alert('Select a file');
-
-        const formData = new FormData();
-        formData.append('avatar', avatarFile); 
-
+        const formData = new FormData(); formData.append('avatar', avatarFile); 
         try {
             const response = await api.post('/upload/avatar', formData);
+            const newAvatar = response.data.user.avatarUrl;
+            setAvatarUrl(newAvatar); updateUser({ avatarUrl: newAvatar });
+            setAvatarFile(null); document.getElementById('avatarInput').value = ''; 
             alert('Avatar updated');
-            
-            const newAvatar = response.data.user.avatarUrl + `?t=${Date.now()}`;
-            setAvatarUrl(newAvatar);
-            updateUser({ avatarUrl: newAvatar });
-            
-            setAvatarFile(null);
-            document.getElementById('avatarInput').value = ''; 
-        } catch (err) {
-            console.error('Avatar upload err:', err);
-            alert('Error: ' + (err.response?.data?.message || err.message));
-        }
+        } catch (err) { alert('Error: ' + (err.response?.data?.message || err.message)); }
     };
 
     const handleChange = (e) => setBookingData({ ...bookingData, [e.target.name]: e.target.value });
 
     const handleBook = async (e) => {
         e.preventDefault();
+        setIsBooking(true);
         try {
             await api.post('/appointments/book', bookingData);
             alert('You have successfully made an appointment!');
             setBookingData({ doctorId: '', date: '', notes: '' });
             fetchData(); 
-        } catch (err) {
-            alert(err.response?.data?.message || 'Recording error');
-        }
+        } catch (err) { alert(err.response?.data?.message || 'Recording error'); } 
+        finally { setIsBooking(false); }
     };
 
     const handleCancel = async (appointmentId) => {
@@ -83,93 +85,108 @@ function PatientCabinet() {
         try {
             await api.delete(`/appointments/${appointmentId}`);
             fetchData(); 
-        } catch (err) {
-            alert('Error when canceling recording');
-        }
+        } catch (err) { alert('Error when canceling recording'); }
     };
 
-    if (isLoading) return <div>Loading the cabinet...</div>;
-    if (error) return <div style={{ color: 'red' }}>{error}</div>;
+    if (isLoading) return <Loader text={t('loadingString')} />;
+    if (error) return <div className="container" style={{ color: 'var(--danger)' }}>{error}</div>;
 
     const currentAvatar = avatarUrl || user?.avatarUrl;
+    const selectedDoctorData = doctors.find(doc => doc._id === bookingData.doctorId);
+
+    const getFileUrl = (file) => file.startsWith('http') ? file : `http://localhost:3000${file}`;
 
     return (
-        <div>
-            <h1>Patient's personal account</h1>
+        <div className="container" ref={cabinetRef}>
+            <h1 className="fade-in">{t('patientCard')}</h1>
 
-            <section style={{ marginBottom: '40px', padding: '20px', border: '1px solid #ccc', display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <div style={{ width: '120px', height: '120px', borderRadius: '50%', backgroundColor: '#eee', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {currentAvatar ? (
-                        <img 
-                            src={currentAvatar.includes('http') ? currentAvatar : `http://localhost:3000${currentAvatar}`} 
-                            alt="Avatar" 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        />
-                    ) : (
-                        <span>No Avatar</span>
-                    )}
+            <section className="card profile-section fade-in">
+                <div className="avatar-container">
+                    {currentAvatar ? <img src={getFileUrl(currentAvatar)} alt="Avatar" /> : <span>No Avatar</span>}
                 </div>
-                <div>
-                    <h2>My Profile</h2>
-                    <form onSubmit={handleAvatarUpload} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                    <h2>{t('myProfile')}</h2>
+                    {isEditingProfile ? (
+                        <form onSubmit={handleProfileUpdate}>
+                            <input type="text" placeholder={t('firstName')} value={profileData.firstName} onChange={(e) => setProfileData({...profileData, firstName: e.target.value})} required />
+                            <input type="text" placeholder={t('lastName')} value={profileData.lastName} onChange={(e) => setProfileData({...profileData, lastName: e.target.value})} required />
+                            <input type="tel" placeholder={t('phone')} value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} required />
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button type="submit" className="success">{t('save')}</button>
+                                <button type="button" className="danger" onClick={() => setIsEditingProfile(false)}>{t('cancel')}</button>
+                            </div>
+                        </form>
+                    ) : (
+                        <div>
+                            <p><strong>{t('firstName')}:</strong> {user?.firstName} {user?.lastName}</p>
+                            <p><strong>{t('phone')}:</strong> {user?.phone}</p>
+                            <button onClick={() => setIsEditingProfile(true)}>{t('editProfile')}</button>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleAvatarUpload} style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
                         <input id="avatarInput" type="file" accept="image/*" onChange={handleFileChange} />
-                        <button type="submit">Upload new Avatar</button>
+                        <button type="submit">{t('uploadAvatar')}</button>
                     </form>
                 </div>
             </section>
 
-            <section style={{ marginBottom: '40px', padding: '20px', border: '1px solid #ccc' }}>
-                <h2>Make an appointment</h2>
+            <section className="card fade-in">
+                <h2>{t('makeAppointment')}</h2>
                 <form onSubmit={handleBook}>
-                    <div style={{ marginBottom: '10px' }}>
-                        <label>Choose a doctor: *</label>
-                        <select name="doctorId" value={bookingData.doctorId} onChange={handleChange} required style={{ display: 'block', width: '100%' }}>
-                            <option value="" disabled>-- Choose a specialist --</option>
-                            {doctors.map(doc => (
-                                <option key={doc._id} value={doc._id}>
-                                    {doc.specialization} - {doc.lastName} {doc.firstName}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <label>{t('chooseDoctor')}</label>
+                    <select name="doctorId" value={bookingData.doctorId} onChange={handleChange} required>
+                        <option value="" disabled>-- Choose a specialist --</option>
+                        {doctors.map(doc => <option key={doc._id} value={doc._id}>{doc.specialization} - {doc.lastName} {doc.firstName}</option>)}
+                    </select>
                     
-                    <div style={{ marginBottom: '10px' }}>
-                        <label>Date and time: *</label>
-                        <input type="datetime-local" name="date" value={bookingData.date} onChange={handleChange} required style={{ display: 'block', width: '100%' }} />
-                    </div>
+                    <label>{t('dateTimeSlot')}</label>
+                    {selectedDoctorData ? (
+                        <select name="date" value={bookingData.date} onChange={handleChange} required>
+                            <option value="" disabled>-- Select an available slot --</option>
+                            {selectedDoctorData.availableSlots?.length > 0 ? (
+                                selectedDoctorData.availableSlots.map(slot => (
+                                    <option key={slot} value={slot}>{new Date(slot).toLocaleString()}</option>
+                                ))
+                            ) : (
+                                <option disabled>No available slots for this doctor</option>
+                            )}
+                        </select>
+                    ) : (
+                        <select disabled>
+                            <option>Select a doctor first</option>
+                        </select>
+                    )}
 
-                    <div style={{ marginBottom: '10px' }}>
-                        <label>Symptoms (optional):</label>
-                        <textarea name="notes" value={bookingData.notes} onChange={handleChange} rows="3" style={{ display: 'block', width: '100%' }} />
-                    </div>
+                    <label>{t('symptomsOptional')}</label>
+                    <textarea name="notes" value={bookingData.notes} onChange={handleChange} rows="3" />
 
-                    <button type="submit">Sign up</button>
+                    <button type="submit" disabled={isBooking}>{isBooking ? t('saving') : t('signUp')}</button>
                 </form>
             </section>
 
-            <section>
-                <h2>My Medical Card / Notes</h2>
-                {appointments.length === 0 ? (
-                    <p>You don't have any doctor appointments yet.</p>
-                ) : (
-                    <ul style={{ listStyleType: 'none', padding: 0 }}>
+            <section className="fade-in">
+                <h2>{t('myMedicalCard')}</h2>
+                {appointments.length === 0 ? <p>{t('noAppointmentsYet')}</p> : (
+                    <ul className="appointment-list">
                         {appointments.map(app => (
-                            <li key={app._id} style={{ border: '1px solid #aaa', margin: '10px 0', padding: '15px' }}>
-                                <p><strong>Doctor:</strong> {app.doctorId?.lastName} {app.doctorId?.firstName} ({app.doctorId?.specialization})</p>
+                            <li key={app._id}>
+                                <h3>{app.doctorId?.lastName} {app.doctorId?.firstName} ({app.doctorId?.specialization})</h3>
                                 <p><strong>Date:</strong> {new Date(app.date).toLocaleString()}</p>
-                                <p><strong>Status:</strong> {app.status}</p>
+                                <p>
+                                    <strong>{t('status')}:</strong> 
+                                    <span className={`status-badge status-${app.status}`} style={{marginLeft: '10px'}}>{app.status}</span>
+                                </p>
 
-                                {app.notes && <p><strong>Doctor notes / Your symptoms:</strong> {app.notes}</p>}
+                                {app.notes && <p><strong>{t('doctorNotes')}</strong> {app.notes}</p>}
                                 
                                 {app.files && app.files.length > 0 && (
-                                    <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#e9f5ff' }}>
-                                        <strong>Lab Results / Scans from Doctor:</strong>
-                                        <ul>
+                                    <div style={{ marginTop: '15px', padding: '15px', background: 'var(--secondary)', borderRadius: 'var(--border-radius)' }}>
+                                        <strong>{t('labResults')}</strong>
+                                        <ul style={{marginTop: '10px'}}>
                                             {app.files.map((file, index) => (
-                                                <li key={index}>
-                                                    <a href={`http://localhost:3000${file}`} target="_blank" rel="noopener noreferrer">
-                                                        Download Result {index + 1}
-                                                    </a>
+                                                <li style={{border: 'none', background: 'none', padding: 0, boxShadow: 'none', marginBottom: '5px'}} key={index}>
+                                                    <a href={getFileUrl(file)} target="_blank" rel="noopener noreferrer">Download Result {index + 1}</a>
                                                 </li>
                                             ))}
                                         </ul>
@@ -177,8 +194,8 @@ function PatientCabinet() {
                                 )}
                                 
                                 {app.status === 'scheduled' && (
-                                    <button onClick={() => handleCancel(app._id)} style={{ color: 'red', marginTop: '10px' }}>
-                                        Cancel recording
+                                    <button onClick={() => handleCancel(app._id)} className="danger" style={{ marginTop: '15px' }}>
+                                        {t('cancelRecording')}
                                     </button>
                                 )}
                             </li>

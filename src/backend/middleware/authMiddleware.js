@@ -6,14 +6,16 @@ export const authMiddleware = (req, res, next) => {
     }
 
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) {
-            return res.status(401).json({ message: 'user not authorized (no title)' });
+        let token = req.cookies?.token;
+        if (!token) {
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.split(' ')[1];
+            }
         }
 
-        const token = authHeader.split(' ')[1];
         if (!token) {
-            return res.status(401).json({ message: 'user not authorized (no token)' });
+            return res.status(401).json({ message: 'user not authorized (no token in cookie or header)' });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
