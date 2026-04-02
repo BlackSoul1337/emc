@@ -86,7 +86,7 @@ function HomeDashboard() {
             <div className="fade-in" style={{ marginBottom: '40px' }}>
                 <h2>{t('weeklyActivity')}</h2>
                 <div className="card" style={{ height: '300px', paddingTop: '20px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="99%" height="100%" minWidth={1} minHeight={1}>
                         <BarChart data={stats.weeklyActivity || activityData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" />

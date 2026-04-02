@@ -30,7 +30,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
         }
 
         const user = await User.findByIdAndUpdate(
-            req.user.userId, { firstName, lastName, phone }, { new: true, runValidators: true }
+            req.user.userId, { firstName, lastName, phone }, { returnDocument: 'after', runValidators: true }
         ).select('-password');
         
         res.json({ message: 'Profile updated', user });

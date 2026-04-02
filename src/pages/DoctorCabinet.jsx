@@ -89,7 +89,11 @@ function DoctorCabinet() {
     const upcomingAppointments = filteredAppointments.filter(app => app.status === 'scheduled');
     const historyAppointments = filteredAppointments.filter(app => app.status !== 'scheduled');
 
-    const getFileUrl = (file) => file.startsWith('http') ? file : `http://localhost:3000${file}`;
+    const getFileUrl = (file) => {
+        if (file.startsWith('http')) return file;
+        const baseUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : '';
+        return `${baseUrl}${file}`;
+    };
 
     if (isLoading) return <Loader text={t('loadingSchedule')} />;
     if (error) return <div className="container" style={{ color: 'var(--danger)' }}>{error}</div>;

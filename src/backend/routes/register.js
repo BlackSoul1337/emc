@@ -47,7 +47,8 @@ router.post('/register', async (req, res) => {
 
         await newUser.save();
 
-        const link = `http://localhost:${process.env.PORT || 3000}/api/users/activate/${activationLink}`;
+        const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+        const link = `${backendUrl}/api/users/activate/${activationLink}`;
         await sendEmail(email, link);
 
         res.status(201).json({ message: 'success' });
@@ -66,7 +67,8 @@ router.get('/activate/:link', async (req, res) => {
         user.isActivated = true;
         await user.save();
         
-        res.redirect('http://localhost:3000/login?activated=true');
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect(`${frontendUrl}/login?activated=true`);
     } catch (error) {
         res.status(500).send('Activation error');
     }

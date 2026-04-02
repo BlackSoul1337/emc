@@ -94,7 +94,11 @@ function PatientCabinet() {
     const currentAvatar = avatarUrl || user?.avatarUrl;
     const selectedDoctorData = doctors.find(doc => doc._id === bookingData.doctorId);
 
-    const getFileUrl = (file) => file.startsWith('http') ? file : `http://localhost:3000${file}`;
+    const getFileUrl = (file) => {
+        if (file.startsWith('http')) return file;
+        const baseUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : '';
+        return `${baseUrl}${file}`;
+    };
 
     return (
         <div className="container" ref={cabinetRef}>

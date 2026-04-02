@@ -92,7 +92,7 @@ router.put('/:id', authMiddleware, roleMiddleware(['doctor', 'admin']), async (r
         const appointment = await Appointment.findByIdAndUpdate(
             req.params.id,
             { status, notes },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!appointment) {
